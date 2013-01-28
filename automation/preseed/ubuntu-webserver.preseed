@@ -1,0 +1,147 @@
+##1/27/2013 modified Fred's https://github.com/lbre/automation.git
+##  preseed to deploy web server
+##  reference: http://watters.ws/kickstart/ubuntu-server.preseed
+
+## Options to set on the command line
+# Locale sets language and country.
+d-i debian-installer/locale string en_US.UTF-8
+
+d-i debian-installer/splash boolean false
+d-i console-setup/ask_detect boolean false
+d-i console-setup/layoutcode string us
+d-i console-setup/variantcode string
+
+# Keyboard selection.
+#d-i console-tools/archs select at
+d-i console-keymaps-at/keymap select us
+# Example for a different keyboard architecture
+#d-i console-keymaps-usb/keymap select mac-usb-us
+
+### Network configuration
+
+# Any hostname and domain names assigned from dhcp take precedence over
+# values set here. However, setting the values still prevents the questions
+# from being shown, even if values come from dhcp.
+d-i netcfg/get_hostname string unassigned-hostname
+d-i netcfg/get_domain string unassigned-domain
+
+# netcfg will choose an interface that has link if possible. This makes it
+# skip displaying a list if there is more than one interface.
+d-i netcfg/choose_interface select eth0
+
+# If you have a slow dhcp server and the installer times out waiting for
+# it, this might be useful.
+d-i netcfg/dhcp_timeout string 60
+
+### Base system installation
+d-i base-installer/kernel/override-image string linux-server
+
+### Clock and time zone setup
+d-i clock-setup/utc-auto boolean true
+d-i clock-setup/utc boolean true
+d-i time/zone string US/Pacific
+d-i clock-setup/ntp boolean true
+d-i clock-setup/ntp-server string time.stanford.edu
+
+### Mirror settings
+d-i mirror/country string US
+d-i mirror/http/proxy string
+
+### Package selection
+d-i pkgsel/install-language-support boolean false
+tasksel tasksel/first multiselect standard, web-server
+
+# Individual additional packages to install
+d-i pkgsel/include string openssh-server build-essential
+#d-i pkgsel/inclue string wallet-client
+
+# Whether to upgrade packages after debootstrap.
+# Allowed values: none, safe-upgrade, full-upgrade
+#d-i pkgsel/upgrade select
+
+# Additional repositories, local[0-9] available
+# add Stanfords repository
+#d-i apt-setup/local0/repository string \
+#  http://debian.stanford.edu/debian-stanford stable main
+#d-i apt-setup/local0/comment string Stanford Debian Repository
+# Enable deb-src lines
+#d-i apt-setup/local0/source boolean false
+# URL to the public key of the local repository; you must provide a key or
+# apt will complain about the unauthenticated repository and so the
+# sources.list line will be left commented out
+#d-i apt-setup/local0/key string  http://debian.stanford.edu/debian-stanford 
+
+# By default the installer requires that repositories be authenticated
+# using a known gpg key. This setting can be used to disable that
+# authentication. Warning: Insecure, not recommended.
+#d-i debian-installer/allow_unauthenticated string true
+
+### Partitioning
+# If the system has free space you can choose to only partition that space.
+#d-i partman-auto/init_automatically_partition select biggest_free
+
+# In addition, you'll need to specify the method to use.
+# The presently available methods are: "regular", "lvm" and "crypto"
+d-i partman-auto/method string regular
+
+# If one of the disks that are going to be automatically partitioned
+# contains an old LVM configuration, the user will normally receive a
+# warning. This can be preseeded away...
+d-i partman-auto/purge_lvm_from_device boolean true
+# And the same goes for the confirmation to write the lvm partitions.
+d-i partman-lvm/confirm boolean true
+
+# You can choose one of the three predefined partitioning recipes:
+# - atomic: all files in one partition
+# - home:   separate /home partition
+# - multi:  separate /home, /usr, /var, and /tmp partitions
+d-i partman-auto/choose_recipe select atomic
+
+# This makes partman automatically partition without confirmation, provided
+# that you told it what to do using one of the methods above.
+d-i partman/confirm_write_new_label boolean true
+d-i partman/choose_partition select Finish partitioning and write changes to disk
+d-i partman/confirm boolean true
+
+### Account setup
+d-i user-setup/allow-password-weak boolean true
+d-i user-setup/encrypt-home boolean false
+
+# Creat a normal user account
+d-i passwd/user-fullname string Ubuntu Tsg User
+d-i passwd/username string tsguser
+
+# Normal users password in clear text
+d-i passwd/user-password password tsgtemp
+d-i passwd/user-password-again password tsgtemp
+
+# Root password 
+d-i passwd/root-login boolean true
+#d-i passwd/root-password password insecure
+#d-i passwd/root-password-again password insecure
+# Set root password encrypted using an MD5 hash
+d-i passwd/root-password-crypted password $6$MlZqcdwY$bZsf7WPSRJwOBhMajy0XMZ12IOMMvcUH0dqLfr11G4Ky92OtwPf2XvK3sRiIegXalbp6EU/ynFvhgVBeFuxaJ0
+
+# disable default user account. Not recommended for now.
+# d-i passwd/make-user boolean false
+
+# keyhost.sh is located at /var/www/fai/
+#d-i preseed/late_command string preseed_fetch /fai/keyhost.sh /target/tmp/keyhost.sh; \
+#   in-target bash -c /tmp/keyhost.sh
+d-i preseed/late_command string wget -O /target/tmp/keyhost.sh http://lbre-mirror01.stanford.edu/fai/keyhost.sh && \
+                                chmod 755 /target/tmp/keyhost.sh; chroot /target "sh -c ./tmp/keyhost.sh"
+
+
+### Boot loader installation
+
+# This is fairly safe to set, it makes grub install automatically to the MBR
+# if no other operating system is detected on the machine.
+d-i grub-installer/only_debian boolean true
+
+# This one makes grub-installer install to the MBR if it also finds some other
+# OS, which is less safe as it might not be able to boot that other OS.
+d-i grub-installer/with_other_os boolean true
+
+
+# Avoid that last message about the install being complete
+d-i finish-install/reboot_in_progress note
